@@ -36,7 +36,7 @@
  *
  * @return mixed Return dependant upon hook function
  */
-function hook_provisioningmodule_clientedit(array $params)
+function hook_awsapigw_clientedit(array $params)
 {
     try {
         // Call the service's function, using the values provided by WHMCS in
@@ -51,7 +51,7 @@ function hook_provisioningmodule_clientedit(array $params)
  *
  * add_hook(string $hookPointName, int $priority, string|array|Closure $function)
  */
-add_hook('ClientEdit', 1, 'hook_provisioningmodule_clientedit');
+add_hook('ClientEdit', 1, 'hook_awsapigw_clientedit');
 
 /**
  * Insert a service item to the client area navigation bar.
@@ -71,7 +71,7 @@ add_hook('ClientAreaPrimaryNavbar', 1, function ($menu)
             ->addChild(
                 'Provisioning Module Products',
                 array(
-                    'uri' => 'clientarea.php?action=services&module=provisioningmodule',
+                    'uri' => 'clientarea.php?action=services&module=awsapigw',
                     'order' => 15,
                 )
             );
@@ -110,7 +110,7 @@ add_hook('ClientAreaSecondarySidebar', 1, function ($secondarySidebar)
         $customPanel->addChild(
                 'Sample Link Menu Item',
                 array(
-                    'uri' => 'clientarea.php?action=services&module=provisioningmodule',
+                    'uri' => 'clientarea.php?action=services&module=awsapigw',
                     'icon'  => 'fa-list-alt',
                     'order' => 2,
                 )
