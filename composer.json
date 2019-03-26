@@ -1,28 +1,29 @@
 {
-    "name": "whmcs/provisioning-module-sample",
-    "description": "Sample Provisioning Module for WHMCS Billing Automation Platform",
+    "name": "greenvine/whmcs-aws-apigw",
+    "description": "WHMCS Provision Module for AWS API Gateway",
     "keywords": [
         "whmcs",
-        "web host automation platform",
-        "provisioning module",
+        "aws",
+        "api gateway",
         "server module"
     ],
-    "homepage": "http://www.whmcs.com/",
+    "homepage": "https://greenvine.me",
     "license": "MIT",
     "authors": [
         {
-            "name": "WHMCS Development Team",
-            "email": "development@whmcs.com",
-            "homepage": "http://www.whmcs.com/",
-            "role": "Developer"
+            "name": "Robin Liu",
+            "email": "commits@codemy.fun",
+            "homepage": "https://greenvine.me",
+            "role": "Creator"
         }
     ],
     "support": {
-        "email": "support@whmcs.com",
-        "forum": "http://forums.whmcs.com/",
-        "wiki": "http://docs.whmcs.com/"
+        "email": "commits@codemy.fun"
     },
     "require-dev": {
         "phpunit/phpunit": "@stable"
+    },
+    "require": {
+        "aws/aws-sdk-php": "^3.90"
     }
 }
