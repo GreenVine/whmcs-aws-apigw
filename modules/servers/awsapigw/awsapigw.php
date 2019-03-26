@@ -129,8 +129,7 @@ function awsapigw_ConfigOptions() {
  *
  * @return string "success" or an error message
  */
-function awsapigw_CreateAccount(array $params)
-{
+function awsapigw_CreateAccount(array $params) {
     try {
         // Call the service's provisioning function, using the values provided
         // by WHMCS in `$params`.
@@ -266,143 +265,6 @@ function awsapigw_TerminateAccount(array $params)
 }
 
 /**
- * Change the password for an instance of a product/service.
- *
- * Called when a password change is requested. This can occur either due to a
- * client requesting it via the client area or an admin requesting it from the
- * admin side.
- *
- * This option is only available to client end users when the product is in an
- * active status.
- *
- * @param array $params common module parameters
- *
- * @see https://developers.whmcs.com/provisioning-modules/module-parameters/
- *
- * @return string "success" or an error message
- */
-function awsapigw_ChangePassword(array $params)
-{
-    try {
-        // Call the service's change password function, using the values
-        // provided by WHMCS in `$params`.
-        //
-        // A sample `$params` array may be defined as:
-        //
-        // ```
-        // array(
-        //     'username' => 'The service username',
-        //     'password' => 'The new service password',
-        // )
-        // ```
-    } catch (Exception $e) {
-        // Record the error in WHMCS's module log.
-        logModuleCall(
-            'awsapigw',
-            __FUNCTION__,
-            $params,
-            $e->getMessage(),
-            $e->getTraceAsString()
-        );
-
-        return $e->getMessage();
-    }
-
-    return 'success';
-}
-
-/**
- * Upgrade or downgrade an instance of a product/service.
- *
- * Called to apply any change in product assignment or parameters. It
- * is called to provision upgrade or downgrade orders, as well as being
- * able to be invoked manually by an admin user.
- *
- * This same function is called for upgrades and downgrades of both
- * products and configurable options.
- *
- * @param array $params common module parameters
- *
- * @see https://developers.whmcs.com/provisioning-modules/module-parameters/
- *
- * @return string "success" or an error message
- */
-function awsapigw_ChangePackage(array $params)
-{
-    try {
-        // Call the service's change password function, using the values
-        // provided by WHMCS in `$params`.
-        //
-        // A sample `$params` array may be defined as:
-        //
-        // ```
-        // array(
-        //     'username' => 'The service username',
-        //     'configoption1' => 'The new service disk space',
-        //     'configoption3' => 'Whether or not to enable FTP',
-        // )
-        // ```
-    } catch (Exception $e) {
-        // Record the error in WHMCS's module log.
-        logModuleCall(
-            'awsapigw',
-            __FUNCTION__,
-            $params,
-            $e->getMessage(),
-            $e->getTraceAsString()
-        );
-
-        return $e->getMessage();
-    }
-
-    return 'success';
-}
-
-/**
- * Test connection with the given server parameters.
- *
- * Allows an admin user to verify that an API connection can be
- * successfully made with the given configuration parameters for a
- * server.
- *
- * When defined in a module, a Test Connection button will appear
- * alongside the Server Type dropdown when adding or editing an
- * existing server.
- *
- * @param array $params common module parameters
- *
- * @see https://developers.whmcs.com/provisioning-modules/module-parameters/
- *
- * @return array
- */
-function awsapigw_TestConnection(array $params)
-{
-    try {
-        // Call the service's connection test function.
-
-        $success = true;
-        $errorMsg = '';
-    } catch (Exception $e) {
-        // Record the error in WHMCS's module log.
-        logModuleCall(
-            'awsapigw',
-            __FUNCTION__,
-            $params,
-            $e->getMessage(),
-            $e->getTraceAsString()
-        );
-
-        $success = false;
-        $errorMsg = $e->getMessage();
-    }
-
-    return array(
-        'success' => $success,
-        'error' => $errorMsg,
-    );
-}
-
-/**
  * Additional actions an admin user can invoke.
  *
  * Define additional actions that an admin user can perform for an
@@ -412,12 +274,10 @@ function awsapigw_TestConnection(array $params)
  *
  * @return array
  */
-function awsapigw_AdminCustomButtonArray()
-{
-    return array(
-        "Button 1 Display Value" => "buttonOneFunction",
-        "Button 2 Display Value" => "buttonTwoFunction",
-    );
+function awsapigw_AdminCustomButtonArray() {
+    return [
+        "Button 1 Display Value" => "buttonOneFunction"
+    ];
 }
 
 /**
@@ -431,13 +291,13 @@ function awsapigw_AdminCustomButtonArray()
  *
  * @return array
  */
-function awsapigw_ClientAreaCustomButtonArray()
-{
-    return array(
-        "Action 1 Display Value" => "actionOneFunction",
-        "Action 2 Display Value" => "actionTwoFunction",
-    );
-}
+// function awsapigw_ClientAreaCustomButtonArray()
+// {
+//     return array(
+//         "Action 1 Display Value" => "actionOneFunction",
+//         "Action 2 Display Value" => "actionTwoFunction",
+//     );
+// }
 
 /**
  * Custom function for performing an additional action.
@@ -455,42 +315,6 @@ function awsapigw_ClientAreaCustomButtonArray()
  * @return string "success" or an error message
  */
 function awsapigw_buttonOneFunction(array $params)
-{
-    try {
-        // Call the service's function, using the values provided by WHMCS in
-        // `$params`.
-    } catch (Exception $e) {
-        // Record the error in WHMCS's module log.
-        logModuleCall(
-            'awsapigw',
-            __FUNCTION__,
-            $params,
-            $e->getMessage(),
-            $e->getTraceAsString()
-        );
-
-        return $e->getMessage();
-    }
-
-    return 'success';
-}
-
-/**
- * Custom function for performing an additional action.
- *
- * You can define an unlimited number of custom functions in this way.
- *
- * Similar to all other module call functions, they should either return
- * 'success' or an error message to be displayed.
- *
- * @param array $params common module parameters
- *
- * @see https://developers.whmcs.com/provisioning-modules/module-parameters/
- * @see awsapigw_ClientAreaCustomButtonArray()
- *
- * @return string "success" or an error message
- */
-function awsapigw_actionOneFunction(array $params)
 {
     try {
         // Call the service's function, using the values provided by WHMCS in
@@ -602,92 +426,6 @@ function awsapigw_AdminServicesTabFieldsSave(array $params)
 
             // Otherwise, error conditions are not supported in this operation.
         }
-    }
-}
-
-/**
- * Perform single sign-on for a given instance of a product/service.
- *
- * Called when single sign-on is requested for an instance of a product/service.
- *
- * When successful, returns a URL to which the user should be redirected.
- *
- * @param array $params common module parameters
- *
- * @see https://developers.whmcs.com/provisioning-modules/module-parameters/
- *
- * @return array
- */
-function awsapigw_ServiceSingleSignOn(array $params)
-{
-    try {
-        // Call the service's single sign-on token retrieval function, using the
-        // values provided by WHMCS in `$params`.
-        $response = array();
-
-        return array(
-            'success' => true,
-            'redirectTo' => $response['redirectUrl'],
-        );
-    } catch (Exception $e) {
-        // Record the error in WHMCS's module log.
-        logModuleCall(
-            'awsapigw',
-            __FUNCTION__,
-            $params,
-            $e->getMessage(),
-            $e->getTraceAsString()
-        );
-
-        return array(
-            'success' => false,
-            'errorMsg' => $e->getMessage(),
-        );
-    }
-}
-
-/**
- * Perform single sign-on for a server.
- *
- * Called when single sign-on is requested for a server assigned to the module.
- *
- * This differs from ServiceSingleSignOn in that it relates to a server
- * instance within the admin area, as opposed to a single client instance of a
- * product/service.
- *
- * When successful, returns a URL to which the user should be redirected to.
- *
- * @param array $params common module parameters
- *
- * @see https://developers.whmcs.com/provisioning-modules/module-parameters/
- *
- * @return array
- */
-function awsapigw_AdminSingleSignOn(array $params)
-{
-    try {
-        // Call the service's single sign-on admin token retrieval function,
-        // using the values provided by WHMCS in `$params`.
-        $response = array();
-
-        return array(
-            'success' => true,
-            'redirectTo' => $response['redirectUrl'],
-        );
-    } catch (Exception $e) {
-        // Record the error in WHMCS's module log.
-        logModuleCall(
-            'awsapigw',
-            __FUNCTION__,
-            $params,
-            $e->getMessage(),
-            $e->getTraceAsString()
-        );
-
-        return array(
-            'success' => false,
-            'errorMsg' => $e->getMessage(),
-        );
     }
 }
 
