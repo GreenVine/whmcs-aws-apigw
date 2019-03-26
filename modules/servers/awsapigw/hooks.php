@@ -36,8 +36,7 @@
  *
  * @return mixed Return dependant upon hook function
  */
-function hook_awsapigw_clientedit(array $params)
-{
+function hook_awsapigw_clientedit(array $params) {
     try {
         // Call the service's function, using the values provided by WHMCS in
         // `$params`.
@@ -62,8 +61,7 @@ add_hook('ClientEdit', 1, 'hook_awsapigw_clientedit');
  *
  * @param \WHMCS\View\Menu\Item $menu
  */
-add_hook('ClientAreaPrimaryNavbar', 1, function ($menu)
-{
+add_hook('ClientAreaPrimaryNavbar', 1, function ($menu) {
     // Check whether the services menu exists.
     if (!is_null($menu->getChild('Services'))) {
         // Add a link to the module filter.
@@ -88,8 +86,7 @@ add_hook('ClientAreaPrimaryNavbar', 1, function ($menu)
  *
  * @param \WHMCS\View\Menu\Item $secondarySidebar
  */
-add_hook('ClientAreaSecondarySidebar', 1, function ($secondarySidebar)
-{
+add_hook('ClientAreaSecondarySidebar', 1, function ($secondarySidebar) {
     // determine if we are on a page containing My Services Actions
     if (!is_null($secondarySidebar->getChild('My Services Actions'))) {
 

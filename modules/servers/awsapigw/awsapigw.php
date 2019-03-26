@@ -34,10 +34,14 @@ if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
 
-// Require any libraries needed for the module to function.
-// require_once __DIR__ . '/path/to/library/loader.php';
-//
-// Also, perform any initialization required by the service's library.
+if (!class_exists('\Aws\ApiGateway\ApiGatewayClient')) {
+    throw new Exception("Required dependency: Aws\ApiGateway does not loaded");
+}
+
+use \Aws\Common\Enum\Region;
+use \Aws\ApiGateway\ApiGatewayClient;
+
+require_once __DIR__ . '/classes/apigw.class.php';
 
 /**
  * Define module related meta data.
@@ -49,15 +53,12 @@ if (!defined("WHMCS")) {
  *
  * @return array
  */
-function awsapigw_MetaData()
-{
-    return array(
+function awsapigw_MetaData() {
+    return [
         'DisplayName' => 'AWS API Gateway',
         'APIVersion' => '1.1', // Use API Version 1.1
-        'RequiresServer' => true, // Set true if module requires a server to work
-        'DefaultNonSSLPort' => '80', // Default Non-SSL Connection Port
-        'DefaultSSLPort' => '443', // Default SSL Connection Port
-    );
+        'RequiresServer' => false, // Set true if module requires a server to work
+    ];
 }
 
 /**
@@ -83,52 +84,33 @@ function awsapigw_MetaData()
  *
  * @return array
  */
-function awsapigw_ConfigOptions()
-{
-    return array(
-        // a text field type allows for single line text input
-        'Text Field' => array(
-            'Type' => 'text',
-            'Size' => '25',
-            'Default' => '1024',
-            'Description' => 'Enter in megabytes',
-        ),
-        // a password field type allows for masked text input
-        'Password Field' => array(
-            'Type' => 'password',
-            'Size' => '25',
-            'Default' => '',
-            'Description' => 'Enter secret value here',
-        ),
-        // the yesno field type displays a single checkbox option
-        'Checkbox Field' => array(
-            'Type' => 'yesno',
-            'Description' => 'Tick to enable',
-        ),
-        // the dropdown field type renders a select menu of options
-        'Dropdown Field' => array(
-            'Type' => 'dropdown',
-            'Options' => array(
-                'option1' => 'Display Value 1',
-                'option2' => 'Second Option',
-                'option3' => 'Another Option',
-            ),
-            'Description' => 'Choose one',
-        ),
-        // the radio field type displays a series of radio button options
-        'Radio Field' => array(
-            'Type' => 'radio',
-            'Options' => 'First Option,Second Option,Third Option',
-            'Description' => 'Choose your option!',
-        ),
-        // the textarea field type allows for multi-line text input
-        'Textarea Field' => array(
-            'Type' => 'textarea',
-            'Rows' => '3',
-            'Cols' => '60',
-            'Description' => 'Freeform multi-line text input field',
-        ),
-    );
+function awsapigw_ConfigOptions() {
+    return [
+        'AWS Key ID' => [
+            'Type'          => 'text',
+            'Size'          => '25',
+            'Default'       => '',
+            'Description'   => 'AWS Access Key ID'
+        ],
+        'AWS Key Secret' => [
+            'Type'          => 'password',
+            'Size'          => '25',
+            'Default'       => '',
+            'Description'   => 'AWS Secret Access Key',
+        ],
+        'API Key Name Prefix' => [
+            'Type'          => 'text',
+            'Size'          => '25',
+            'Default'       => 'whmcs_',
+            'Description'   => 'Prefix added to the name of API key',
+        ],
+        'API Gateway Region' => [
+            'Type'          => 'text',
+            'Size'          => '25',
+            'Default'       => 'us-east-1',
+            'Description'   => 'Deployed region of API Gateway',
+        ]
+    ];
 }
 
 /**
