@@ -34,14 +34,13 @@ if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
 
-if (!class_exists('\Aws\ApiGateway\ApiGatewayClient')) {
-    throw new Exception("Required dependency: Aws\ApiGateway does not loaded");
-}
-
-use \Aws\Common\Enum\Region;
-use \Aws\ApiGateway\ApiGatewayClient;
-
+require_once __DIR__ . '/classes/schema.class.php';
 require_once __DIR__ . '/classes/apigw.class.php';
+
+use Aws\Result;
+use WHMCS\Module\AwsApiGateway;
+
+AwsApiGateway\DatabaseMgr::createTable();
 
 /**
  * Define module related meta data.
@@ -53,10 +52,11 @@ require_once __DIR__ . '/classes/apigw.class.php';
  *
  * @return array
  */
-function awsapigw_MetaData() {
+function awsapigw_MetaData()
+{
     return [
-        'DisplayName' => 'AWS API Gateway',
-        'APIVersion' => '1.1', // Use API Version 1.1
+        'DisplayName'    => 'AWS API Gateway',
+        'APIVersion'     => '1.1', // Use API Version 1.1
         'RequiresServer' => false, // Set true if module requires a server to work
     ];
 }
@@ -84,32 +84,45 @@ function awsapigw_MetaData() {
  *
  * @return array
  */
-function awsapigw_ConfigOptions() {
+function awsapigw_ConfigOptions()
+{
     return [
-        'AWS Key ID' => [
-            'Type'          => 'text',
-            'Size'          => '25',
-            'Default'       => '',
-            'Description'   => 'AWS Access Key ID'
+        'aws_key_id'          => [
+            'FriendlyName' => 'AWS Key ID',
+            'Type'         => 'text',
+            'Size'         => '25',
+            'Default'      => '',
+            'Description'  => 'AWS Access Key ID',
         ],
-        'AWS Key Secret' => [
-            'Type'          => 'password',
-            'Size'          => '25',
-            'Default'       => '',
-            'Description'   => 'AWS Secret Access Key',
+        'aws_key_secret'      => [
+            'FriendlyName' => 'AWS Key Secret',
+            'Type'         => 'password',
+            'Size'         => '25',
+            'Default'      => '',
+            'Description'  => 'AWS Secret Access Key',
         ],
-        'API Key Name Prefix' => [
-            'Type'          => 'text',
-            'Size'          => '25',
-            'Default'       => 'whmcs_',
-            'Description'   => 'Prefix added to the name of API key',
+        'api_name_pfx' => [
+            'FriendlyName'  => 'API Key Name Prefix',
+            'Type'        => 'text',
+            'Size'        => '25',
+            'Default'     => 'whmcs_',
+            'Description' => 'Prefix added to the name of API key',
         ],
-        'API Gateway Region' => [
-            'Type'          => 'text',
-            'Size'          => '25',
-            'Default'       => 'us-east-1',
-            'Description'   => 'Deployed region of API Gateway',
-        ]
+        'api_region'  => [
+            'FriendlyName'  => 'API Gateway Region',
+            'Type'        => 'text',
+            'Size'        => '25',
+            'Default'     => 'us-east-1',
+            'Description' => 'Deployed region of API Gateway',
+        ],
+        'usage_plan_ids'  => [
+            'FriendlyName'  => 'API Usage Plan IDs',
+            'Type' => 'textarea',
+            'Rows'  => '3',
+            'Cols'  => '50',
+            'Default' => '',
+            'Description' => 'List of usage plan IDs (separated by line breaks or comma)'
+        ],
     ];
 }
 
@@ -129,38 +142,48 @@ function awsapigw_ConfigOptions() {
  *
  * @return string "success" or an error message
  */
-function awsapigw_CreateAccount(array $params) {
+function awsapigw_CreateAccount(array $params)
+{
     try {
-        // Call the service's provisioning function, using the values provided
-        // by WHMCS in `$params`.
-        //
-        // A sample `$params` array may be defined as:
-        //
-        // ```
-        // array(
-        //     'domain' => 'The domain of the service to provision',
-        //     'username' => 'The username to access the new service',
-        //     'password' => 'The password to access the new service',
-        //     'configoption1' => 'The amount of disk space to provision',
-        //     'configoption2' => 'The new services secret key',
-        //     'configoption3' => 'Whether or not to enable FTP',
-        //     ...
-        // )
-        // ```
-    } catch (Exception $e) {
-        // Record the error in WHMCS's module log.
-        logModuleCall(
-            'awsapigw',
-            __FUNCTION__,
-            $params,
-            $e->getMessage(),
-            $e->getTraceAsString()
-        );
+        $serviceId  = $params['model']['id'];
+        $awsKey     = $params['configoption1'];
+        $awsSecret  = $params['configoption2'];
+        $namePrefix = $params['configoption3'];
+        $apiRegion  = $params['configoption4'];
+        $usagePlans = formatUsagePlan($params['configoption5']);
+
+        $apigwClient = new AwsApiGateway\AwsApiGatewayClient($awsKey, $awsSecret, $apiRegion);
+
+        if (AwsApiGateway\DatabaseMgr::hasServiceConfig($serviceId)) {
+            return 'The API key already exists. Use reset function to generate a new one. In case the key is deleted externally, please invoke termination command to remove the old record stored in the database.';
+        }
+
+        if (is_int($serviceId) && $serviceId > 0 && !empty($apiRegion)) {
+            $createdKey = $apigwClient->createKeyWithUsagePlans("{$namePrefix}_serviceid_{$serviceId}", $usagePlans);
+
+            if ($createdKey) {
+                $ret = AwsApiGateway\DatabaseMgr::addServiceConfig([
+                    'id'                => $serviceId,
+                    'apigw_key_id'      => $createdKey->keyId,
+                    'apigw_key_value'   => $createdKey->keyVal,
+                    'apigw_region'      => $apiRegion,
+                    'usage_plans'       => empty($createdKey->assocUsagePlans) ? null : implode(',', $createdKey->assocUsagePlans),
+                    'created_at'        => $createdKey->createdAt,
+                    'updated_at'        => $createdKey->updatedAt
+                ]);
+
+                return $ret >= 0 ? 'success' : "Failed to insert record for Service #{$serviceId}";
+            } else {
+                return "Failed to create API key and/or associate usage plans for Service #{$serviceId}";
+            }
+        }
+    } catch (\Exception $e) {
+        logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
 
         return $e->getMessage();
     }
 
-    return 'success';
+    return 'Invalid request parameters';
 }
 
 /**
@@ -179,22 +202,32 @@ function awsapigw_CreateAccount(array $params) {
 function awsapigw_SuspendAccount(array $params)
 {
     try {
-        // Call the service's suspend function, using the values provided by
-        // WHMCS in `$params`.
-    } catch (Exception $e) {
-        // Record the error in WHMCS's module log.
-        logModuleCall(
-            'awsapigw',
-            __FUNCTION__,
-            $params,
-            $e->getMessage(),
-            $e->getTraceAsString()
-        );
+        $serviceId      = $params['model']['id'];
+        $awsKey         = $params['configoption1'];
+        $awsSecret      = $params['configoption2'];
+        $apiRegion      = $params['configoption4'];
+
+        $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
+
+        if (!empty($serviceConfig)) {
+            $keyId = $serviceConfig->apigw_key_id;
+            $apigwClient = new AwsApiGateway\AwsApiGatewayClient($awsKey, $awsSecret, $apiRegion);
+
+            if ($apigwClient->disableKey($keyId)) {
+                return 'success';
+            } else {
+                return 'Failed to suspend the API key.';
+            }
+        } else {
+            return 'The API key does not exist any more in the database. It may be deleted externally and you must re-create the key to continue.';
+        }
+    } catch (\Exception $e) {
+        logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
 
         return $e->getMessage();
     }
 
-    return 'success';
+    return 'Invalid request parameters';
 }
 
 /**
@@ -213,22 +246,32 @@ function awsapigw_SuspendAccount(array $params)
 function awsapigw_UnsuspendAccount(array $params)
 {
     try {
-        // Call the service's unsuspend function, using the values provided by
-        // WHMCS in `$params`.
-    } catch (Exception $e) {
-        // Record the error in WHMCS's module log.
-        logModuleCall(
-            'awsapigw',
-            __FUNCTION__,
-            $params,
-            $e->getMessage(),
-            $e->getTraceAsString()
-        );
+        $serviceId      = $params['model']['id'];
+        $awsKey         = $params['configoption1'];
+        $awsSecret      = $params['configoption2'];
+        $apiRegion      = $params['configoption4'];
+
+        $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
+
+        if (!empty($serviceConfig)) {
+            $keyId = $serviceConfig->apigw_key_id;
+            $apigwClient = new AwsApiGateway\AwsApiGatewayClient($awsKey, $awsSecret, $apiRegion);
+
+            if ($apigwClient->enableKey($keyId)) {
+                return 'success';
+            } else {
+                return 'Failed to unsuspend the API key.';
+            }
+        } else {
+            return 'The API key does not exist any more in the database. It may be deleted externally and you must re-create the key to continue.';
+        }
+    } catch (\Exception $e) {
+        logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
 
         return $e->getMessage();
     }
 
-    return 'success';
+    return 'Invalid request parameters';
 }
 
 /**
@@ -248,15 +291,8 @@ function awsapigw_TerminateAccount(array $params)
     try {
         // Call the service's terminate function, using the values provided by
         // WHMCS in `$params`.
-    } catch (Exception $e) {
-        // Record the error in WHMCS's module log.
-        logModuleCall(
-            'awsapigw',
-            __FUNCTION__,
-            $params,
-            $e->getMessage(),
-            $e->getTraceAsString()
-        );
+    } catch (\Exception $e) {
+        logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
 
         return $e->getMessage();
     }
@@ -274,9 +310,10 @@ function awsapigw_TerminateAccount(array $params)
  *
  * @return array
  */
-function awsapigw_AdminCustomButtonArray() {
+function awsapigw_AdminCustomButtonArray()
+{
     return [
-        "Button 1 Display Value" => "buttonOneFunction"
+        "Reset API Key" => "ResetApiKey",
     ];
 }
 
@@ -314,20 +351,13 @@ function awsapigw_AdminCustomButtonArray() {
  *
  * @return string "success" or an error message
  */
-function awsapigw_buttonOneFunction(array $params)
+function awsapigw_ResetApiKey(array $params)
 {
     try {
         // Call the service's function, using the values provided by WHMCS in
         // `$params`.
-    } catch (Exception $e) {
-        // Record the error in WHMCS's module log.
-        logModuleCall(
-            'awsapigw',
-            __FUNCTION__,
-            $params,
-            $e->getMessage(),
-            $e->getTraceAsString()
-        );
+    } catch (\Exception $e) {
+        logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
 
         return $e->getMessage();
     }
@@ -354,34 +384,55 @@ function awsapigw_buttonOneFunction(array $params)
 function awsapigw_AdminServicesTabFields(array $params)
 {
     try {
-        // Call the service's function, using the values provided by WHMCS in
-        // `$params`.
-        $response = array();
+        $serviceId = $params['model']['id'];
+        $awsKey     = $params['configoption1'];
+        $awsSecret  = $params['configoption2'];
+        $apiRegion  = $params['configoption4'];
 
-        // Return an array based on the function's response.
-        return array(
-            'Number of Apples' => (int) $response['numApples'],
-            'Number of Oranges' => (int) $response['numOranges'],
-            'Last Access Date' => date("Y-m-d H:i:s", $response['lastLoginTimestamp']),
-            'Something Editable' => '<input type="hidden" name="awsapigw_original_uniquefieldname" '
-                . 'value="' . htmlspecialchars($response['textvalue']) . '" />'
-                . '<input type="text" name="awsapigw_uniquefieldname"'
-                . 'value="' . htmlspecialchars($response['textvalue']) . '" />',
-        );
-    } catch (Exception $e) {
-        // Record the error in WHMCS's module log.
-        logModuleCall(
-            'awsapigw',
-            __FUNCTION__,
-            $params,
-            $e->getMessage(),
-            $e->getTraceAsString()
-        );
+        $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
 
-        // In an error condition, simply return no additional fields to display.
+        if (!empty($serviceConfig)) {
+            $keyId = $serviceConfig->apigw_key_id;
+            $retFields = [
+                'Deployed Region' => $serviceConfig->apigw_region,
+                'API Key'    => $serviceConfig->apigw_key_value
+            ];
+
+            $apigwClient    = new AwsApiGateway\AwsApiGatewayClient($awsKey, $awsSecret, $apiRegion);
+            $apiKeyStatus   = $apigwClient->getKey($keyId);
+
+            if ($apiKeyStatus instanceof Result) {
+                $retFields['Key Name'] = "{$apiKeyStatus->get('name')} (ID: {$keyId})";
+
+                if (!empty($apiDesc = $apiKeyStatus->get('description'))) {
+                    $retFields['Key Description'] = $apiDesc;
+                }
+
+                $createdAt = $apiKeyStatus->get('createdDate');
+                $updatedAt = $apiKeyStatus->get('lastUpdatedDate');
+
+                if (!empty($tz = @date_default_timezone_get())) {
+                    $createdAt->setTimezone(new DateTimeZone($tz));
+                    $updatedAt->setTimezone(new DateTimeZone($tz));
+                }
+
+                $retFields['Usage Plans'] = str_replace(',', ' ,', $serviceConfig->usage_plans);
+                $retFields['Key Status'] = $apiKeyStatus->get('enabled') ? 'Enabled' : 'Disabled';
+                $retFields['Key Created'] = fromMySQLDate($createdAt, true);
+                $retFields['Key Last Updated'] = fromMySQLDate($updatedAt, true);
+
+                refreshServiceConfig($serviceId, $apiKeyStatus); // sync external config changes when page loads
+            }
+
+            return $retFields;
+        }
+    } catch (\Exception $e) {
+        logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
+
+        return ['Key Status' => 'Unknown / Error'];
     }
 
-    return array();
+    return ['Key Status' => 'Not Registered'];
 }
 
 /**
@@ -414,17 +465,8 @@ function awsapigw_AdminServicesTabFieldsSave(array $params)
         try {
             // Call the service's function, using the values provided by WHMCS
             // in `$params`.
-        } catch (Exception $e) {
-            // Record the error in WHMCS's module log.
-            logModuleCall(
-                'awsapigw',
-                __FUNCTION__,
-                $params,
-                $e->getMessage(),
-                $e->getTraceAsString()
-            );
-
-            // Otherwise, error conditions are not supported in this operation.
+        } catch (\Exception $e) {
+            logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
         }
     }
 }
@@ -467,43 +509,58 @@ function awsapigw_ClientArea(array $params)
 
     if ($requestedAction == 'manage') {
         $serviceAction = 'get_usage';
-        $templateFile = 'templates/manage.tpl';
+        $templateFile  = 'templates/manage.tpl';
     } else {
         $serviceAction = 'get_stats';
-        $templateFile = 'templates/overview.tpl';
+        $templateFile  = 'templates/overview.tpl';
     }
 
     try {
         // Call the service's function based on the request action, using the
         // values provided by WHMCS in `$params`.
-        $response = array();
+        $response = [];
 
         $extraVariable1 = 'abc';
         $extraVariable2 = '123';
 
-        return array(
+        return [
             'tabOverviewReplacementTemplate' => $templateFile,
-            'templateVariables' => array(
+            'templateVariables'              => [
                 'extraVariable1' => $extraVariable1,
                 'extraVariable2' => $extraVariable2,
-            ),
-        );
-    } catch (Exception $e) {
-        // Record the error in WHMCS's module log.
-        logModuleCall(
-            'awsapigw',
-            __FUNCTION__,
-            $params,
-            $e->getMessage(),
-            $e->getTraceAsString()
-        );
+            ],
+        ];
+    } catch (\Exception $e) {
+        logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
 
         // In an error condition, display an error page.
-        return array(
+        return [
             'tabOverviewReplacementTemplate' => 'error.tpl',
-            'templateVariables' => array(
+            'templateVariables'              => [
                 'usefulErrorHelper' => $e->getMessage(),
-            ),
-        );
+            ],
+        ];
     }
+}
+
+function refreshServiceConfig($serviceId, $apiKeyStatus)
+{
+    try {
+        AwsApiGateway\DatabaseMgr::updateServiceConfig($serviceId, [
+            'created_at'    => $apiKeyStatus->get('createdDate'),
+            'updated_at'    => $apiKeyStatus->get('lastUpdatedDate')
+        ]);
+    } catch (\Exception $e) {
+        logModuleCall('awsapigw', __FUNCTION__, $serviceId, $e->getMessage(), $e->getTraceAsString());
+    }
+}
+
+function formatUsagePlan(string $plans)
+{
+    $plans = str_replace(['\r\n', '\r', '\n'], ',', strtolower(trim($plans)));
+    $plansArr = explode(',', $plans);
+
+    return array_unique(array_map(function ($plan) {
+        return trim($plan); // trim redundant characters
+    }, $plansArr));
 }
