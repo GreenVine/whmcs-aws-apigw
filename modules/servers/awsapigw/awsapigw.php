@@ -448,9 +448,11 @@ function awsapigw_AdminServicesTabFields(array $params)
             return $retFields;
         }
     } catch (\Exception $e) {
-        logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
+        $msg = $e->getMessage();
 
-        return ['Key Status' => 'Unknown / Error'];
+        logModuleCall('awsapigw', __FUNCTION__, $params, $msg, $e->getTraceAsString());
+
+        return ['Key Status' => 'Unknown / Error' . (!empty($msg) ? ": $msg" : null)];
     }
 
     return ['Key Status' => 'Not Registered'];
