@@ -457,42 +457,6 @@ function awsapigw_AdminServicesTabFields(array $params)
 }
 
 /**
- * Execute actions upon save of an instance of a product/service.
- *
- * Use to perform any required actions upon the submission of the admin area
- * product management form.
- *
- * It can also be used in conjunction with the AdminServicesTabFields function
- * to handle values submitted in any custom fields which is demonstrated here.
- *
- * @param array $params common module parameters
- *
- * @see https://developers.whmcs.com/provisioning-modules/module-parameters/
- * @see awsapigw_AdminServicesTabFields()
- */
-function awsapigw_AdminServicesTabFieldsSave(array $params)
-{
-    // Fetch form submission variables.
-    $originalFieldValue = isset($_REQUEST['awsapigw_original_uniquefieldname'])
-        ? $_REQUEST['awsapigw_original_uniquefieldname']
-        : '';
-
-    $newFieldValue = isset($_REQUEST['awsapigw_uniquefieldname'])
-        ? $_REQUEST['awsapigw_uniquefieldname']
-        : '';
-
-    // Look for a change in value to avoid making unnecessary service calls.
-    if ($originalFieldValue != $newFieldValue) {
-        try {
-            // Call the service's function, using the values provided by WHMCS
-            // in `$params`.
-        } catch (\Exception $e) {
-            logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
-        }
-    }
-}
-
-/**
  * Client area output logic handling.
  *
  * This function is used to define module specific client area output. It should
@@ -522,47 +486,47 @@ function awsapigw_AdminServicesTabFieldsSave(array $params)
  *
  * @return array
  */
-function awsapigw_ClientArea(array $params)
-{
-    // Determine the requested action and set service call parameters based on
-    // the action.
-    $requestedAction = isset($_REQUEST['customAction']) ? $_REQUEST['customAction'] : '';
+// function awsapigw_ClientArea(array $params)
+// {
+//     // Determine the requested action and set service call parameters based on
+//     // the action.
+//     $requestedAction = isset($_REQUEST['customAction']) ? $_REQUEST['customAction'] : '';
 
-    if ($requestedAction == 'manage') {
-        $serviceAction = 'get_usage';
-        $templateFile  = 'templates/manage.tpl';
-    } else {
-        $serviceAction = 'get_stats';
-        $templateFile  = 'templates/overview.tpl';
-    }
+//     if ($requestedAction == 'manage') {
+//         $serviceAction = 'get_usage';
+//         $templateFile  = 'templates/manage.tpl';
+//     } else {
+//         $serviceAction = 'get_stats';
+//         $templateFile  = 'templates/overview.tpl';
+//     }
 
-    try {
-        // Call the service's function based on the request action, using the
-        // values provided by WHMCS in `$params`.
-        $response = [];
+//     try {
+//         // Call the service's function based on the request action, using the
+//         // values provided by WHMCS in `$params`.
+//         $response = [];
 
-        $extraVariable1 = 'abc';
-        $extraVariable2 = '123';
+//         $extraVariable1 = 'abc';
+//         $extraVariable2 = '123';
 
-        return [
-            'tabOverviewReplacementTemplate' => $templateFile,
-            'templateVariables'              => [
-                'extraVariable1' => $extraVariable1,
-                'extraVariable2' => $extraVariable2,
-            ],
-        ];
-    } catch (\Exception $e) {
-        logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
+//         return [
+//             'tabOverviewReplacementTemplate' => $templateFile,
+//             'templateVariables'              => [
+//                 'extraVariable1' => $extraVariable1,
+//                 'extraVariable2' => $extraVariable2,
+//             ],
+//         ];
+//     } catch (\Exception $e) {
+//         logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
 
-        // In an error condition, display an error page.
-        return [
-            'tabOverviewReplacementTemplate' => 'error.tpl',
-            'templateVariables'              => [
-                'usefulErrorHelper' => $e->getMessage(),
-            ],
-        ];
-    }
-}
+//         // In an error condition, display an error page.
+//         return [
+//             'tabOverviewReplacementTemplate' => 'error.tpl',
+//             'templateVariables'              => [
+//                 'usefulErrorHelper' => $e->getMessage(),
+//             ],
+//         ];
+//     }
+// }
 
 function refreshServiceConfig($serviceId, $apiKeyStatus)
 {

@@ -36,21 +36,21 @@
  *
  * @return mixed Return dependant upon hook function
  */
-function hook_awsapigw_clientedit(array $params) {
-    try {
-        // Call the service's function, using the values provided by WHMCS in
-        // `$params`.
-    } catch (Exception $e) {
-        // Consider logging or reporting the error.
-    }
-}
+// function hook_awsapigw_clientedit(array $params) {
+//     try {
+//         // Call the service's function, using the values provided by WHMCS in
+//         // `$params`.
+//     } catch (Exception $e) {
+//         // Consider logging or reporting the error.
+//     }
+// }
 
 /**
  * Register a hook with WHMCS.
  *
  * add_hook(string $hookPointName, int $priority, string|array|Closure $function)
  */
-add_hook('ClientEdit', 1, 'hook_awsapigw_clientedit');
+// add_hook('ClientEdit', 1, 'hook_awsapigw_clientedit');
 
 /**
  * Insert a service item to the client area navigation bar.
@@ -61,20 +61,20 @@ add_hook('ClientEdit', 1, 'hook_awsapigw_clientedit');
  *
  * @param \WHMCS\View\Menu\Item $menu
  */
-add_hook('ClientAreaPrimaryNavbar', 1, function ($menu) {
-    // Check whether the services menu exists.
-    if (!is_null($menu->getChild('Services'))) {
-        // Add a link to the module filter.
-        $menu->getChild('Services')
-            ->addChild(
-                'Provisioning Module Products',
-                array(
-                    'uri' => 'clientarea.php?action=services&module=awsapigw',
-                    'order' => 15,
-                )
-            );
-    }
-});
+// add_hook('ClientAreaPrimaryNavbar', 1, function ($menu) {
+//     // Check whether the services menu exists.
+//     if (!is_null($menu->getChild('Services'))) {
+//         // Add a link to the module filter.
+//         $menu->getChild('Services')
+//             ->addChild(
+//                 'Provisioning Module Products',
+//                 array(
+//                     'uri' => 'clientarea.php?action=services&module=awsapigw',
+//                     'order' => 15,
+//                 )
+//             );
+//     }
+// });
 
 /**
  * Render a custom sidebar panel in the secondary sidebar.
@@ -86,32 +86,32 @@ add_hook('ClientAreaPrimaryNavbar', 1, function ($menu) {
  *
  * @param \WHMCS\View\Menu\Item $secondarySidebar
  */
-add_hook('ClientAreaSecondarySidebar', 1, function ($secondarySidebar) {
-    // determine if we are on a page containing My Services Actions
-    if (!is_null($secondarySidebar->getChild('My Services Actions'))) {
+// add_hook('ClientAreaSecondarySidebar', 1, function ($secondarySidebar) {
+//     // determine if we are on a page containing My Services Actions
+//     if (!is_null($secondarySidebar->getChild('My Services Actions'))) {
 
-        // define new sidebar panel
-        $customPanel = $secondarySidebar->addChild('Provisioning Module Sample Panel');
+//         // define new sidebar panel
+//         $customPanel = $secondarySidebar->addChild('Provisioning Module Sample Panel');
 
-        // set panel attributes
-        $customPanel->moveToFront()
-            ->setIcon('fa-user')
-            ->setBodyHtml(
-                'Your HTML output goes here...'
-            )
-            ->setFooterHtml(
-                'Footer HTML can go here...'
-            );
+//         // set panel attributes
+//         $customPanel->moveToFront()
+//             ->setIcon('fa-user')
+//             ->setBodyHtml(
+//                 'Your HTML output goes here...'
+//             )
+//             ->setFooterHtml(
+//                 'Footer HTML can go here...'
+//             );
 
-        // define link
-        $customPanel->addChild(
-                'Sample Link Menu Item',
-                array(
-                    'uri' => 'clientarea.php?action=services&module=awsapigw',
-                    'icon'  => 'fa-list-alt',
-                    'order' => 2,
-                )
-            );
+//         // define link
+//         $customPanel->addChild(
+//                 'Sample Link Menu Item',
+//                 array(
+//                     'uri' => 'clientarea.php?action=services&module=awsapigw',
+//                     'icon'  => 'fa-list-alt',
+//                     'order' => 2,
+//                 )
+//             );
 
-    }
-});
+//     }
+// });
