@@ -289,8 +289,29 @@ function awsapigw_UnsuspendAccount(array $params)
 function awsapigw_TerminateAccount(array $params)
 {
     try {
-        // Call the service's terminate function, using the values provided by
-        // WHMCS in `$params`.
+        $serviceId      = $params['model']['id'];
+        $awsKey         = $params['configoption1'];
+        $awsSecret      = $params['configoption2'];
+        $apiRegion      = $params['configoption4'];
+
+        $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
+
+        if (!empty($serviceConfig)) {
+            $keyId = $serviceConfig->apigw_key_id;
+            $apigwClient = new AwsApiGateway\AwsApiGatewayClient($awsKey, $awsSecret, $apiRegion);
+
+            if ($apigwClient->deleteKey($keyId)) {
+                if (AwsApiGateway\DatabaseMgr::deleteServiceConfig($serviceId)) {
+                    return 'success';
+                } else {
+                    return 'The API key is successfully deleted on AWS but not in WHMCS database.';
+                }
+            } else {
+                return 'Failed to terminate the API key on AWS.';
+            }
+        } else {
+            return 'The API key does not exist any more in the database. It may be deleted externally and you must re-create the key to continue.';
+        }
     } catch (\Exception $e) {
         logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
 

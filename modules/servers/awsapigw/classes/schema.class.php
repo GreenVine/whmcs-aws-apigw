@@ -85,4 +85,16 @@ class DatabaseMgr
             }
         });
     }
+
+    public static function deleteServiceConfig(int $serviceId, string $tableName = DEFAULT_USAGE_TABLE) {
+        try {
+            Capsule::table($tableName)
+                ->where('id', $serviceId)
+                ->delete();
+
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
 }

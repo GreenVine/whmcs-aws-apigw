@@ -13,6 +13,7 @@ if (!class_exists('\Aws\ApiGateway\ApiGatewayClient')) {
 use Aws\Result;
 use Aws\Credentials\Credentials;
 use Aws\ApiGateway\ApiGatewayClient;
+use Aws\ApiGateway\Exception\ApiGatewayException;
 
 class AwsApiGatewayClient
 {
@@ -52,7 +53,7 @@ class AwsApiGatewayClient
                             if ($createdUsagePlanKey instanceof Result) {
                                 $assocUsagePlans[] = $usagePlan; // treat as successful request
                             }
-                        } catch (\Exception $e) {
+                        } catch (ApiGatewayException $e) {
                             logModuleCall('awsapigw', __FUNCTION__, $usagePlan, $e->getMessage(), $e->getTraceAsString());
                         }
                     }
@@ -86,6 +87,25 @@ class AwsApiGatewayClient
             'apiKey'        => $id,
             'includeValue'  => true
         ]);
+    }
+
+    public function deleteKey($id)
+    {
+        try {
+            $this->apigwClient->deleteApiKey([
+                'apiKey'    => $id
+            ]);
+
+            return true;
+        } catch (ApiGatewayException $e) {
+            if (!empty($e)) {
+                if ($e->getAwsErrorCode() === 'NotFoundException') {
+                    return true; // suppress this error as key may be deleted externally
+                }
+            }
+        }
+
+        return false;
     }
 
     public function enableKey($id)
@@ -131,7 +151,7 @@ class AwsApiGatewayClient
                 'apiKey'            => $id,
                 'patchOperations'   => $patches
             ]);
-        } catch (\Exception $e) {
+        } catch (ApiGatewayException $e) {
             logModuleCall('awsapigw', __FUNCTION__, $id, $e->getMessage(), $e->getTraceAsString());
             return false;
         }
