@@ -418,39 +418,9 @@ function awsapigw_AdminServicesTabFields(array $params)
         $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
 
         if (!empty($serviceConfig)) {
-            $keyId = $serviceConfig->apigw_key_id;
-            $retFields = [
-                'Deployed Region' => $serviceConfig->apigw_region,
-                'API Key'    => $serviceConfig->apigw_key_value
-            ];
-
             $apigwClient    = new AwsApiGateway\AwsApiGatewayClient($awsKey, $awsSecret, $apiRegion);
-            $apiKeyStatus   = $apigwClient->getKey($keyId);
 
-            if ($apiKeyStatus instanceof Result) {
-                $retFields['Key Name'] = "{$apiKeyStatus->get('name')} (ID: {$keyId})";
-
-                if (!empty($apiDesc = $apiKeyStatus->get('description'))) {
-                    $retFields['Key Description'] = $apiDesc;
-                }
-
-                $createdAt = $apiKeyStatus->get('createdDate');
-                $updatedAt = $apiKeyStatus->get('lastUpdatedDate');
-
-                if (!empty($tz = @date_default_timezone_get())) {
-                    $createdAt->setTimezone(new DateTimeZone($tz));
-                    $updatedAt->setTimezone(new DateTimeZone($tz));
-                }
-
-                $retFields['Usage Plans'] = str_replace(',', ' ,', $serviceConfig->usage_plans);
-                $retFields['Key Status'] = $apiKeyStatus->get('enabled') ? 'Enabled' : 'Disabled';
-                $retFields['Key Created'] = fromMySQLDate($createdAt, true);
-                $retFields['Key Last Updated'] = fromMySQLDate($updatedAt, true);
-
-                refreshServiceConfig($serviceId, $apiKeyStatus); // sync external config changes when page loads
-            }
-
-            return $retFields;
+            return getServiceConfig($serviceId, $serviceConfig, $apigwClient);
         }
     } catch (\Exception $e) {
         $msg = $e->getMessage();
@@ -534,6 +504,42 @@ function awsapigw_AdminServicesTabFields(array $params)
 //         ];
 //     }
 // }
+
+function getServiceConfig($serviceId, $serviceConfig, &$apigwClient)
+{
+    $ret = [
+        'Deployed Region' => $serviceConfig->apigw_region,
+        'API Key'    => $serviceConfig->apigw_key_value
+    ];
+
+    $apiKeyId       = $serviceConfig->apigw_key_id;
+    $apiKeyStatus   = $apigwClient->getKey($apiKeyId);
+
+    if ($apiKeyStatus instanceof Result) {
+        $ret['Key Name'] = "{$apiKeyStatus->get('name')} (ID: {$apiKeyId})";
+
+        if (!empty($apiDesc = $apiKeyStatus->get('description'))) {
+            $ret['Key Description'] = $apiDesc;
+        }
+
+        $createdAt = $apiKeyStatus->get('createdDate');
+        $updatedAt = $apiKeyStatus->get('lastUpdatedDate');
+
+        if (!empty($tz = @date_default_timezone_get())) {
+            $createdAt->setTimezone(new DateTimeZone($tz));
+            $updatedAt->setTimezone(new DateTimeZone($tz));
+        }
+
+        $ret['Usage Plans'] = str_replace(',', ' ,', $serviceConfig->usage_plans);
+        $ret['Key Status'] = $apiKeyStatus->get('enabled') ? 'Enabled' : 'Disabled';
+        $ret['Key Created'] = fromMySQLDate($createdAt, true);
+        $ret['Key Last Updated'] = fromMySQLDate($updatedAt, true);
+
+        refreshServiceConfig($serviceId, $apiKeyStatus); // sync external config changes when page loads
+    }
+
+    return $ret;
+}
 
 function refreshServiceConfig($serviceId, $apiKeyStatus)
 {
