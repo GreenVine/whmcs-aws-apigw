@@ -21,10 +21,9 @@
  * @license https://www.whmcs.com/license/ WHMCS Eula
  */
 
-// Require any libraries needed for the module to function.
-// require_once __DIR__ . '/path/to/library/loader.php';
-//
-// Also, perform any initialization required by the service's library.
+add_hook('EmailPreSend', 10, function (array $vars) {
+    if (!empty($serviceId = $vars['relid'])) { }
+});
 
 /**
  * Client edit sample hook function.

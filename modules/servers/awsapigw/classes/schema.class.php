@@ -6,7 +6,7 @@ if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
 
-define('DEFAULT_USAGE_TABLE', 'mod_awsapigw');
+require_once __DIR__ . '/../includes/constants.php';
 
 use WHMCS\Database\Capsule;
 

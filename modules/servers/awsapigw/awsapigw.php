@@ -37,6 +37,7 @@ if (!defined("WHMCS")) {
 require_once __DIR__ . '/classes/schema.class.php';
 require_once __DIR__ . '/classes/apigw.class.php';
 
+
 use Aws\Result;
 use WHMCS\Module\AwsApiGateway;
 
@@ -123,6 +124,13 @@ function awsapigw_ConfigOptions()
             'Default' => '',
             'Description' => 'List of usage plan IDs (separated by line breaks or comma)'
         ],
+        'api_endpoint'  => [
+            'FriendlyName'  => 'API Endpoint',
+            'Type'        => 'text',
+            'Size'        => '25',
+            'Default'     => '',
+            'Description' => 'API endpoint displayed to clients',
+        ],
     ];
 }
 
@@ -146,11 +154,11 @@ function awsapigw_CreateAccount(array $params)
 {
     try {
         $serviceId  = $params['model']['id'];
-        $awsKey     = $params['configoption1'];
-        $awsSecret  = $params['configoption2'];
-        $namePrefix = $params['configoption3'];
-        $apiRegion  = $params['configoption4'];
-        $usagePlans = formatUsagePlan($params['configoption5']);
+        $awsKey     = $params[CFG_OPTION_AWS_KEY];
+        $awsSecret  = $params[CFG_OPTION_AWS_SECRET];
+        $namePrefix = $params[CFG_OPTION_API_KEY_NAME_PREFIX];
+        $apiRegion  = $params[CFG_OPTION_API_REGION];
+        $usagePlans = formatUsagePlan($params[CFG_OPTION_API_USAGE_PLANS]);
 
         $apigwClient = new AwsApiGateway\AwsApiGatewayClient($awsKey, $awsSecret, $apiRegion);
 
@@ -183,7 +191,7 @@ function awsapigw_CreateAccount(array $params)
         return $e->getMessage();
     }
 
-    return 'Invalid request parameters';
+    return 'Unknown error occurred, please contact the support team.';
 }
 
 /**
@@ -203,9 +211,9 @@ function awsapigw_SuspendAccount(array $params)
 {
     try {
         $serviceId      = $params['model']['id'];
-        $awsKey         = $params['configoption1'];
-        $awsSecret      = $params['configoption2'];
-        $apiRegion      = $params['configoption4'];
+        $awsKey         = $params[CFG_OPTION_AWS_KEY];
+        $awsSecret      = $params[CFG_OPTION_AWS_SECRET];
+        $apiRegion      = $params[CFG_OPTION_API_REGION];
 
         $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
 
@@ -227,7 +235,7 @@ function awsapigw_SuspendAccount(array $params)
         return $e->getMessage();
     }
 
-    return 'Invalid request parameters';
+    return 'Unknown error occurred, please contact the support team.';
 }
 
 /**
@@ -247,9 +255,9 @@ function awsapigw_UnsuspendAccount(array $params)
 {
     try {
         $serviceId      = $params['model']['id'];
-        $awsKey         = $params['configoption1'];
-        $awsSecret      = $params['configoption2'];
-        $apiRegion      = $params['configoption4'];
+        $awsKey         = $params[CFG_OPTION_AWS_KEY];
+        $awsSecret      = $params[CFG_OPTION_AWS_SECRET];
+        $apiRegion      = $params[CFG_OPTION_API_REGION];
 
         $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
 
@@ -271,7 +279,7 @@ function awsapigw_UnsuspendAccount(array $params)
         return $e->getMessage();
     }
 
-    return 'Invalid request parameters';
+    return 'Unknown error occurred, please contact the support team.';
 }
 
 /**
@@ -290,9 +298,9 @@ function awsapigw_TerminateAccount(array $params)
 {
     try {
         $serviceId      = $params['model']['id'];
-        $awsKey         = $params['configoption1'];
-        $awsSecret      = $params['configoption2'];
-        $apiRegion      = $params['configoption4'];
+        $awsKey         = $params[CFG_OPTION_AWS_KEY];
+        $awsSecret      = $params[CFG_OPTION_AWS_SECRET];
+        $apiRegion      = $params[CFG_OPTION_API_REGION];
 
         $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
 
@@ -318,7 +326,7 @@ function awsapigw_TerminateAccount(array $params)
         return $e->getMessage();
     }
 
-    return 'success';
+    return 'Unknown error occurred, please contact the support team.';
 }
 
 /**
@@ -349,10 +357,10 @@ function awsapigw_AdminCustomButtonArray()
  *
  * @return array
  */
-function awsapigw_ClientAreaCustomButtonArray()
+function awsapigw_ClientAreaAllowedFunctions()
 {
     return [
-        "Reset API Key" => "ResetApiKey",
+        "ResetApiKey" => "ResetApiKey",
     ];
 }
 
@@ -373,22 +381,14 @@ function awsapigw_ClientAreaCustomButtonArray()
  */
 function awsapigw_ResetApiKey(array $params)
 {
-    try {
-        $serviceId      = $params['model']['id'];
-        $awsKey         = $params['configoption1'];
-        $awsSecret      = $params['configoption2'];
-        $apiRegion      = $params['configoption4'];
+    if (isset($params['status']) && $params['status'] == 'Active') {
+        awsapigw_TerminateAccount($params);
+        awsapigw_CreateAccount($params);
 
-        $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
-
-        if (!empty($serviceConfig)) { }
-    } catch (\Exception $e) {
-        logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
-
-        return $e->getMessage();
+        return 'success';
+    } else {
+        return 'Service must be in Active status to reset the API key.';
     }
-
-    return 'success';
 }
 
 /**
@@ -410,17 +410,31 @@ function awsapigw_ResetApiKey(array $params)
 function awsapigw_AdminServicesTabFields(array $params)
 {
     try {
-        $serviceId = $params['model']['id'];
-        $awsKey     = $params['configoption1'];
-        $awsSecret  = $params['configoption2'];
-        $apiRegion  = $params['configoption4'];
+        $serviceId      = $params['model']['id'];
+        $awsKey         = $params[CFG_OPTION_AWS_KEY];
+        $awsSecret      = $params[CFG_OPTION_AWS_SECRET];
+        $apiRegion      = $params[CFG_OPTION_API_REGION];
 
         $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
 
         if (!empty($serviceConfig)) {
-            $apigwClient    = new AwsApiGateway\AwsApiGatewayClient($awsKey, $awsSecret, $apiRegion);
+            $apigwClient = new AwsApiGateway\AwsApiGatewayClient($awsKey, $awsSecret, $apiRegion);
+            $serviceConfigDetails = getServiceConfigDetails($params);
+            $retFields = [
+                'Deployed Region'   => $serviceConfigDetails->deploy_region,
+                'API Key'           => "{$serviceConfigDetails->api_key} (ID: {$serviceConfigDetails->api_key_id})",
+                'API Endpoint'      => $serviceConfigDetails->api_endpoint,
+                'Key Name'          => $serviceConfigDetails->api_key_name,
+                'Key Description'   => $serviceConfigDetails->api_key_desc,
+                'Key Status'        => $serviceConfigDetails->api_key_stat ? 'Active' : 'Inactive',
+                'Usage Plans'       => str_replace(',', ' ,', $serviceConfigDetails->usage_plans),
+                'Creation Date'     => !empty($serviceConfigDetails->created_at) ? fromMySQLDate($serviceConfigDetails->created_at, true) : null,
+                'Updated Date'      => !empty($serviceConfigDetails->updated_at) ? fromMySQLDate($serviceConfigDetails->updated_at, true) : null
+            ];
 
-            return getServiceConfig($serviceId, $serviceConfig, $apigwClient);
+            return array_filter($retFields, function ($el) {
+                return isset($el) && $el !== null && trim($el) !== '';
+            });
         }
     } catch (\Exception $e) {
         $msg = $e->getMessage();
@@ -463,82 +477,86 @@ function awsapigw_AdminServicesTabFields(array $params)
  *
  * @return array
  */
-// function awsapigw_ClientArea(array $params)
-// {
-//     // Determine the requested action and set service call parameters based on
-//     // the action.
-//     $requestedAction = isset($_REQUEST['customAction']) ? $_REQUEST['customAction'] : '';
-
-//     if ($requestedAction == 'manage') {
-//         $serviceAction = 'get_usage';
-//         $templateFile  = 'templates/manage.tpl';
-//     } else {
-//         $serviceAction = 'get_stats';
-//         $templateFile  = 'templates/overview.tpl';
-//     }
-
-//     try {
-//         // Call the service's function based on the request action, using the
-//         // values provided by WHMCS in `$params`.
-//         $response = [];
-
-//         $extraVariable1 = 'abc';
-//         $extraVariable2 = '123';
-
-//         return [
-//             'tabOverviewReplacementTemplate' => $templateFile,
-//             'templateVariables'              => [
-//                 'extraVariable1' => $extraVariable1,
-//                 'extraVariable2' => $extraVariable2,
-//             ],
-//         ];
-//     } catch (\Exception $e) {
-//         logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
-
-//         // In an error condition, display an error page.
-//         return [
-//             'tabOverviewReplacementTemplate' => 'error.tpl',
-//             'templateVariables'              => [
-//                 'usefulErrorHelper' => $e->getMessage(),
-//             ],
-//         ];
-//     }
-// }
-
-function getServiceConfig($serviceId, $serviceConfig, &$apigwClient)
+function awsapigw_ClientArea(array $params)
 {
-    $ret = [
-        'Deployed Region' => $serviceConfig->apigw_region,
-        'API Key'    => $serviceConfig->apigw_key_value
-    ];
+    $serviceId = $params['model']['id'];
 
-    $apiKeyId       = $serviceConfig->apigw_key_id;
-    $apiKeyStatus   = $apigwClient->getKey($apiKeyId);
+    try {
+        $templateFile  = 'templates/api.tpl';
+        $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
+        $serviceConfigDetails = array_filter((array) getServiceConfigDetails($params, false), function ($el) {
+            return isset($el) && $el !== null && trim($el) !== '';
+        });
 
-    if ($apiKeyStatus instanceof Result) {
-        $ret['Key Name'] = "{$apiKeyStatus->get('name')} (ID: {$apiKeyId})";
-
-        if (!empty($apiDesc = $apiKeyStatus->get('description'))) {
-            $ret['Key Description'] = $apiDesc;
-        }
-
-        $createdAt = $apiKeyStatus->get('createdDate');
-        $updatedAt = $apiKeyStatus->get('lastUpdatedDate');
-
-        if (!empty($tz = @date_default_timezone_get())) {
-            $createdAt->setTimezone(new DateTimeZone($tz));
-            $updatedAt->setTimezone(new DateTimeZone($tz));
-        }
-
-        $ret['Usage Plans'] = str_replace(',', ' ,', $serviceConfig->usage_plans);
-        $ret['Key Status'] = $apiKeyStatus->get('enabled') ? 'Enabled' : 'Disabled';
-        $ret['Key Created'] = fromMySQLDate($createdAt, true);
-        $ret['Key Last Updated'] = fromMySQLDate($updatedAt, true);
-
-        refreshServiceConfig($serviceId, $apiKeyStatus); // sync external config changes when page loads
+        return [
+            'tabOverviewModuleOutputTemplate'   => $templateFile,
+            'templateVariables'                 => $serviceConfigDetails,
+        ];
+    } catch (\Exception $e) {
+        logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
     }
 
-    return $ret;
+    return [];
+}
+
+function getServiceConfigDetails(&$params, $onlineCheck = true)
+{
+    $data = [];
+
+    try {
+        $serviceId      = $params['model']['id'];
+        $awsKey         = $params[CFG_OPTION_AWS_KEY];
+        $awsSecret      = $params[CFG_OPTION_AWS_SECRET];
+        $apiRegion      = $params[CFG_OPTION_API_REGION];
+        $apiEndpoint    = $params[CFG_OPTION_API_ENDPOINT_URL];
+        $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
+
+        $data = [
+            'deploy_region' => $serviceConfig->apigw_region,
+            'api_key'       => $serviceConfig->apigw_key_value,
+            'api_key_name'  => null,
+            'api_key_id'    => $serviceConfig->apigw_key_id,
+            'api_key_desc'  => null,
+            'api_key_stat'  => null,
+            'api_endpoint'  => !empty($apiEndpoint) ? $apiEndpoint : null,
+            'usage_plans'   => $serviceConfig->usage_plans,
+            'created_at'    => null,
+            'updated_at'    => null
+        ];
+
+        if (!empty($serviceConfig)) {
+            $apigwClient = new AwsApiGateway\AwsApiGatewayClient($awsKey, $awsSecret, $apiRegion);
+
+            if ($onlineCheck) { // pass false to disables online check and provides database-cached info
+                $apiKeyStatus   = $apigwClient->getKey($data['api_key_id']);
+                if ($apiKeyStatus instanceof Result) {
+                    $data['api_key_name'] = $apiKeyStatus->get('name');
+
+                    if (!empty($apiDesc = $apiKeyStatus->get('description'))) {
+                        $data['api_key_desc'] = $apiDesc;
+                    }
+
+                    $createdAt = $apiKeyStatus->get('createdDate');
+                    $updatedAt = $apiKeyStatus->get('lastUpdatedDate');
+
+                    if (!empty($tz = @date_default_timezone_get())) {
+                        $createdAt->setTimezone(new DateTimeZone($tz));
+                        $updatedAt->setTimezone(new DateTimeZone($tz));
+                    }
+
+                    $data['api_key_stat']   = $apiKeyStatus->get('enabled');
+                    $data['created_at']     = $createdAt;
+                    $data['updated_at']     = $updatedAt;
+
+                    refreshServiceConfig($serviceId, $apiKeyStatus); // sync external config changes for each call
+                }
+            }
+        }
+    } catch (\Exception $e) {
+        logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
+    }
+
+    return (object) $data;
 }
 
 function refreshServiceConfig($serviceId, $apiKeyStatus)
