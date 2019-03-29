@@ -155,7 +155,7 @@ function awsapigw_CreateAccount(array $params)
         $apigwClient = new AwsApiGateway\AwsApiGatewayClient($awsKey, $awsSecret, $apiRegion);
 
         if (AwsApiGateway\DatabaseMgr::hasServiceConfig($serviceId)) {
-            return 'The API key already exists. Use reset function to generate a new one. In case the key is deleted externally, please invoke termination command to remove the old record stored in the database.';
+            throw new \Exception('The API key already exists. Use reset function to generate a new one. In case the key is deleted externally, please invoke termination command to remove the old record stored in the database.');
         }
 
         if (is_int($serviceId) && $serviceId > 0 && !empty($apiRegion)) {
@@ -216,10 +216,10 @@ function awsapigw_SuspendAccount(array $params)
             if ($apigwClient->disableKey($keyId)) {
                 return 'success';
             } else {
-                return 'Failed to suspend the API key.';
+                throw new \Exception('Failed to suspend the API key.');
             }
         } else {
-            return 'The API key does not exist any more in the database. It may be deleted externally and you must re-create the key to continue.';
+            throw new \Exception('The API key does not exist any more in the database. It may be deleted externally.');
         }
     } catch (\Exception $e) {
         logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
@@ -260,10 +260,10 @@ function awsapigw_UnsuspendAccount(array $params)
             if ($apigwClient->enableKey($keyId)) {
                 return 'success';
             } else {
-                return 'Failed to unsuspend the API key.';
+                throw new \Exception('Failed to unsuspend the API key.');
             }
         } else {
-            return 'The API key does not exist any more in the database. It may be deleted externally and you must re-create the key to continue.';
+            throw new \Exception('The API key does not exist any more in the database. It may be deleted externally.');
         }
     } catch (\Exception $e) {
         logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
@@ -304,13 +304,13 @@ function awsapigw_TerminateAccount(array $params)
                 if (AwsApiGateway\DatabaseMgr::deleteServiceConfig($serviceId)) {
                     return 'success';
                 } else {
-                    return 'The API key is successfully deleted on AWS but not in WHMCS database.';
+                    throw new \Exception('The API key is successfully deleted on AWS but not in WHMCS database.');
                 }
             } else {
-                return 'Failed to terminate the API key on AWS.';
+                throw new \Exception('Failed to terminate the API key on AWS.');
             }
         } else {
-            return 'The API key does not exist any more in the database. It may be deleted externally and you must re-create the key to continue.';
+            throw new \Exception('The API key does not exist any more in the database. It may be deleted externally.');
         }
     } catch (\Exception $e) {
         logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
@@ -349,13 +349,12 @@ function awsapigw_AdminCustomButtonArray()
  *
  * @return array
  */
-// function awsapigw_ClientAreaCustomButtonArray()
-// {
-//     return array(
-//         "Action 1 Display Value" => "actionOneFunction",
-//         "Action 2 Display Value" => "actionTwoFunction",
-//     );
-// }
+function awsapigw_ClientAreaCustomButtonArray()
+{
+    return [
+        "Reset API Key" => "ResetApiKey",
+    ];
+}
 
 /**
  * Custom function for performing an additional action.
@@ -375,8 +374,14 @@ function awsapigw_AdminCustomButtonArray()
 function awsapigw_ResetApiKey(array $params)
 {
     try {
-        // Call the service's function, using the values provided by WHMCS in
-        // `$params`.
+        $serviceId      = $params['model']['id'];
+        $awsKey         = $params['configoption1'];
+        $awsSecret      = $params['configoption2'];
+        $apiRegion      = $params['configoption4'];
+
+        $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
+
+        if (!empty($serviceConfig)) { }
     } catch (\Exception $e) {
         logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
 
