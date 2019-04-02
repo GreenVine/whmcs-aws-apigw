@@ -10,33 +10,30 @@ if (!class_exists('\Aws\ApiGateway\ApiGatewayClient')) {
     throw new Exception("Required dependency: Aws\ApiGateway does not loaded");
 }
 
-use Aws\Result;
-use Aws\Credentials\Credentials;
 use Aws\ApiGateway\ApiGatewayClient;
 use Aws\ApiGateway\Exception\ApiGatewayException;
+use Aws\Credentials\Credentials;
+use Aws\Result;
 
-class AwsApiGatewayClient
-{
+class AwsApiGatewayClient {
     protected $apigwClient;
 
-    public function __construct($apiKey, $apiSecret, $region = 'us-east-1')
-    {
+    public function __construct($apiKey, $apiSecret, $region = 'us-east-1') {
         $credentials = new Credentials($apiKey, $apiSecret);
 
         $this->apigwClient = new ApiGatewayClient([
-            'version'       => 'latest',
-            'region'        => $region,
-            'credentials'   => $credentials
+            'version'     => 'latest',
+            'region'      => $region,
+            'credentials' => $credentials,
         ]);
     }
 
-    public function createKeyWithUsagePlans($name, array $usagePlans)
-    {
+    public function createKeyWithUsagePlans($name, array $usagePlans) {
         $createdApiKey = $this->createKey($name);
 
         if ($createdApiKey instanceof Result) {
-            $keyId = $createdApiKey->get('id');
-            $keyVal = $createdApiKey->get('value');
+            $keyId           = $createdApiKey->get('id');
+            $keyVal          = $createdApiKey->get('value');
             $assocUsagePlans = [];
 
             if (!empty($keyId) && !empty($keyVal)) {
@@ -45,9 +42,9 @@ class AwsApiGatewayClient
                     foreach ($usagePlans as $usagePlan) {
                         try {
                             $createdUsagePlanKey = $this->apigwClient->createUsagePlanKey([
-                                'keyId'         => $keyId,
-                                'usagePlanId'   => $usagePlan,
-                                'keyType'       => 'API_KEY'
+                                'keyId'       => $keyId,
+                                'usagePlanId' => $usagePlan,
+                                'keyType'     => 'API_KEY',
                             ]);
 
                             if ($createdUsagePlanKey instanceof Result) {
@@ -59,12 +56,12 @@ class AwsApiGatewayClient
                     }
                 }
 
-                return (object)[
-                    'keyId'             => $keyId,
-                    'keyVal'            => $keyVal,
-                    'assocUsagePlans'   => $assocUsagePlans,
-                    'createdAt'         => $createdApiKey->get('createdDate'),
-                    'updatedAt'         => $createdApiKey->get('lastUpdatedDate')
+                return (object) [
+                    'keyId'           => $keyId,
+                    'keyVal'          => $keyVal,
+                    'assocUsagePlans' => $assocUsagePlans,
+                    'createdAt'       => $createdApiKey->get('createdDate'),
+                    'updatedAt'       => $createdApiKey->get('lastUpdatedDate'),
                 ];
             }
         }
@@ -72,28 +69,25 @@ class AwsApiGatewayClient
         throw new \Exception("Failed to create API key");
     }
 
-    public function createKey($name)
-    {
+    public function createKey($name) {
         return $this->apigwClient->createApiKey([
-            'name'                  => $name,
-            'enabled'               => true,
-            'generateDistinctId'    => true
+            'name'               => $name,
+            'enabled'            => true,
+            'generateDistinctId' => true,
         ]);
     }
 
-    public function getKey($id)
-    {
+    public function getKey($id) {
         return $this->apigwClient->getApiKey([
-            'apiKey'        => $id,
-            'includeValue'  => true
+            'apiKey'       => $id,
+            'includeValue' => true,
         ]);
     }
 
-    public function deleteKey($id)
-    {
+    public function deleteKey($id) {
         try {
             $this->apigwClient->deleteApiKey([
-                'apiKey'    => $id
+                'apiKey' => $id,
             ]);
 
             return true;
@@ -108,10 +102,9 @@ class AwsApiGatewayClient
         return false;
     }
 
-    public function enableKey($id)
-    {
+    public function enableKey($id) {
         $status = $this->updateKey($id, [
-            'enabled'   => 'true'
+            'enabled' => 'true',
         ]);
 
         if ($status instanceof Result) {
@@ -121,10 +114,9 @@ class AwsApiGatewayClient
         return false;
     }
 
-    public function disableKey($id)
-    {
+    public function disableKey($id) {
         $status = $this->updateKey($id, [
-            'enabled'   => 'false'
+            'enabled' => 'false',
         ]);
 
         if ($status instanceof Result) {
@@ -134,22 +126,21 @@ class AwsApiGatewayClient
         return false;
     }
 
-    private function updateKey($id, $kv)
-    {
+    private function updateKey($id, $kv) {
         $patches = [];
 
         foreach ($kv as $k => $v) {
             $patches[] = [
                 'op'    => 'replace',
                 'path'  => "/{$k}",
-                'value' => $v
+                'value' => $v,
             ];
         }
 
         try {
             return $this->apigwClient->updateApiKey([
-                'apiKey'            => $id,
-                'patchOperations'   => $patches
+                'apiKey'          => $id,
+                'patchOperations' => $patches,
             ]);
         } catch (ApiGatewayException $e) {
             logModuleCall('awsapigw', __FUNCTION__, $id, $e->getMessage(), $e->getTraceAsString());

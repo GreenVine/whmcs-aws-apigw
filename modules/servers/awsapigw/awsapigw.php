@@ -35,13 +35,13 @@ if (!defined("WHMCS")) {
 }
 
 require_once __DIR__ . '/classes/schema.class.php';
+require_once __DIR__ . '/classes/service.class.php';
 require_once __DIR__ . '/classes/apigw.class.php';
 
+require_once __DIR__ . '/includes/service.php';
 
 use Aws\Result;
 use WHMCS\Module\AwsApiGateway;
-
-AwsApiGateway\DatabaseMgr::createTable();
 
 /**
  * Define module related meta data.
@@ -53,8 +53,7 @@ AwsApiGateway\DatabaseMgr::createTable();
  *
  * @return array
  */
-function awsapigw_MetaData()
-{
+function awsapigw_MetaData() {
     return [
         'DisplayName'    => 'AWS API Gateway',
         'APIVersion'     => '1.1', // Use API Version 1.1
@@ -85,53 +84,129 @@ function awsapigw_MetaData()
  *
  * @return array
  */
-function awsapigw_ConfigOptions()
-{
-    return [
-        'aws_key_id'          => [
+function awsapigw_ConfigOptions() {
+    $basicFields = [
+        'aws_key_id'     => [
             'FriendlyName' => 'AWS Key ID',
             'Type'         => 'text',
             'Size'         => '25',
             'Default'      => '',
             'Description'  => 'AWS Access Key ID',
+            'SimpleMode'   => true,
         ],
-        'aws_key_secret'      => [
+        'aws_key_secret' => [
             'FriendlyName' => 'AWS Key Secret',
             'Type'         => 'password',
             'Size'         => '25',
             'Default'      => '',
             'Description'  => 'AWS Secret Access Key',
+            'SimpleMode'   => true,
         ],
-        'api_name_pfx' => [
-            'FriendlyName'  => 'API Key Name Prefix',
-            'Type'        => 'text',
-            'Size'        => '25',
-            'Default'     => 'whmcs_',
-            'Description' => 'Prefix added to the name of API key',
+        'api_name_pfx'   => [
+            'FriendlyName' => 'API Key Name Prefix',
+            'Type'         => 'text',
+            'Size'         => '25',
+            'Default'      => 'whmcs_',
+            'Description'  => 'Prefix added to the name of API key',
+            'SimpleMode'   => true,
         ],
-        'api_region'  => [
-            'FriendlyName'  => 'API Gateway Region',
-            'Type'        => 'text',
-            'Size'        => '25',
-            'Default'     => 'us-east-1',
-            'Description' => 'Deployed region of API Gateway',
+        'api_region'     => [
+            'FriendlyName' => 'API Gateway Region',
+            'Type'         => 'text',
+            'Size'         => '25',
+            'Default'      => 'us-east-1',
+            'Description'  => 'Deployed region of API Gateway',
+            'SimpleMode'   => true,
         ],
-        'usage_plan_ids'  => [
-            'FriendlyName'  => 'API Usage Plan IDs',
-            'Type' => 'textarea',
-            'Rows'  => '3',
-            'Cols'  => '50',
-            'Default' => '',
-            'Description' => 'List of usage plan IDs (separated by line breaks or comma)'
+        'usage_plan_ids' => [
+            'FriendlyName' => 'API Usage Plan IDs',
+            'Type'         => 'textarea',
+            'Rows'         => '2',
+            'Cols'         => '15',
+            'Default'      => '',
+            'Description'  => 'List of usage plan IDs (separated by line breaks or comma)',
+            'SimpleMode'   => true,
         ],
-        'api_endpoint'  => [
-            'FriendlyName'  => 'API Endpoint',
-            'Type'        => 'text',
-            'Size'        => '25',
-            'Default'     => '',
-            'Description' => 'API endpoint displayed to clients',
+        'api_endpoint'   => [
+            'FriendlyName' => 'API Endpoint',
+            'Type'         => 'text',
+            'Size'         => '25',
+            'Default'      => '',
+            'Description'  => 'API endpoint displayed to clients',
+            'SimpleMode'   => true,
         ],
     ];
+
+    $redisFields = [
+        'api_key_cache'              => [
+            'FriendlyName' => 'Cache API Key with Redis',
+            'Type'         => 'yesno',
+            'Size'         => '25',
+            'Default'      => 'off',
+            'Description'  => 'Use Redis for API key reverse lookup (optional)',
+        ],
+        'api_key_cache_persist_conn' => [
+            'FriendlyName' => 'Redis Persistent Connection',
+            'Type'         => 'yesno',
+            'Size'         => '25',
+            'Default'      => 'off',
+            'Description'  => 'Prefer persistent connection when possible',
+        ],
+        'api_key_cache_host'         => [
+            'FriendlyName' => 'Redis Host',
+            'Type'         => 'text',
+            'Size'         => '25',
+            'Default'      => '127.0.0.1',
+            'Description'  => 'Redis server IP or hostname',
+        ],
+        'api_key_cache_port'         => [
+            'FriendlyName' => 'Redis Port',
+            'Type'         => 'text',
+            'Size'         => '25',
+            'Default'      => '6379',
+            'Description'  => 'Redis server port',
+        ],
+        'api_key_cache_dbindex'      => [
+            'FriendlyName' => 'Redis Database',
+            'Type'         => 'text',
+            'Size'         => '25',
+            'Default'      => '1',
+            'Description'  => 'Redis database index',
+        ],
+        'api_key_cache_key_prefix'   => [
+            'FriendlyName' => 'Redis Key Prefix',
+            'Type'         => 'text',
+            'Size'         => '25',
+            'Default'      => 'awsapigw:',
+            'Description'  => 'Prefix attached to each key',
+        ],
+        'api_key_cache_auth'         => [
+            'FriendlyName' => 'Redis Password',
+            'Type'         => 'text',
+            'Size'         => '25',
+            'Default'      => '',
+            'Description'  => 'Redis AUTH password',
+        ],
+        'api_key_cache_timeout'      => [
+            'FriendlyName' => 'Redis Timeout',
+            'Type'         => 'text',
+            'Size'         => '25',
+            'Default'      => '3',
+            'Description'  => 'Redis timeout (in sec)',
+        ],
+    ];
+
+    if (class_exists('\Redis', true)) {
+        $basicFields = array_merge($basicFields, $redisFields); // show Redis options to Redis-enabled PHP installation
+    } else {
+        $basicFields['api_key_cache_not_available'] = [
+            'Type'         => 'label',
+            'FriendlyName' => 'API Key Caching',
+            'Description'  => 'Options are disabled as <strong><a href="https://github.com/phpredis/phpredis" target="_blank">phpredis</a></strong> extension is not installed.',
+        ];
+    }
+
+    return $basicFields;
 }
 
 /**
@@ -150,8 +225,7 @@ function awsapigw_ConfigOptions()
  *
  * @return string "success" or an error message
  */
-function awsapigw_CreateAccount(array $params)
-{
+function awsapigw_CreateAccount(array $params) {
     try {
         $serviceId  = $params['model']['id'];
         $awsKey     = $params[CFG_OPTION_AWS_KEY];
@@ -160,9 +234,10 @@ function awsapigw_CreateAccount(array $params)
         $apiRegion  = $params[CFG_OPTION_API_REGION];
         $usagePlans = formatUsagePlan($params[CFG_OPTION_API_USAGE_PLANS]);
 
+        $svcManager = getServiceManager($params);
         $apigwClient = new AwsApiGateway\AwsApiGatewayClient($awsKey, $awsSecret, $apiRegion);
 
-        if (AwsApiGateway\DatabaseMgr::hasServiceConfig($serviceId)) {
+        if ($svcManager->hasServiceConfig($serviceId)) {
             throw new \Exception('The API key already exists. Use reset function to generate a new one. In case the key is deleted externally, please invoke termination command to remove the old record stored in the database.');
         }
 
@@ -170,14 +245,14 @@ function awsapigw_CreateAccount(array $params)
             $createdKey = $apigwClient->createKeyWithUsagePlans("{$namePrefix}_serviceid_{$serviceId}", $usagePlans);
 
             if ($createdKey) {
-                $ret = AwsApiGateway\DatabaseMgr::addServiceConfig([
-                    'id'                => $serviceId,
-                    'apigw_key_id'      => $createdKey->keyId,
-                    'apigw_key_value'   => $createdKey->keyVal,
-                    'apigw_region'      => $apiRegion,
-                    'usage_plans'       => empty($createdKey->assocUsagePlans) ? null : implode(',', $createdKey->assocUsagePlans),
-                    'created_at'        => $createdKey->createdAt,
-                    'updated_at'        => $createdKey->updatedAt
+                $ret = $svcManager->addServiceConfig([
+                    'id'              => $serviceId,
+                    'apigw_key_id'    => $createdKey->keyId,
+                    'apigw_key_value' => $createdKey->keyVal,
+                    'apigw_region'    => $apiRegion,
+                    'usage_plans'     => empty($createdKey->assocUsagePlans) ? null : implode(',', $createdKey->assocUsagePlans),
+                    'created_at'      => $createdKey->createdAt,
+                    'updated_at'      => $createdKey->updatedAt,
                 ]);
 
                 return $ret >= 0 ? 'success' : "Failed to insert record for Service #{$serviceId}";
@@ -207,18 +282,17 @@ function awsapigw_CreateAccount(array $params)
  *
  * @return string "success" or an error message
  */
-function awsapigw_SuspendAccount(array $params)
-{
+function awsapigw_SuspendAccount(array $params) {
     try {
-        $serviceId      = $params['model']['id'];
-        $awsKey         = $params[CFG_OPTION_AWS_KEY];
-        $awsSecret      = $params[CFG_OPTION_AWS_SECRET];
-        $apiRegion      = $params[CFG_OPTION_API_REGION];
+        $serviceId = $params['model']['id'];
+        $awsKey    = $params[CFG_OPTION_AWS_KEY];
+        $awsSecret = $params[CFG_OPTION_AWS_SECRET];
+        $apiRegion = $params[CFG_OPTION_API_REGION];
 
-        $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
+        $serviceConfig = getServiceManager($params)->getServiceConfig($serviceId);
 
         if (!empty($serviceConfig)) {
-            $keyId = $serviceConfig->apigw_key_id;
+            $keyId       = $serviceConfig->apigw_key_id;
             $apigwClient = new AwsApiGateway\AwsApiGatewayClient($awsKey, $awsSecret, $apiRegion);
 
             if ($apigwClient->disableKey($keyId)) {
@@ -251,18 +325,17 @@ function awsapigw_SuspendAccount(array $params)
  *
  * @return string "success" or an error message
  */
-function awsapigw_UnsuspendAccount(array $params)
-{
+function awsapigw_UnsuspendAccount(array $params) {
     try {
-        $serviceId      = $params['model']['id'];
-        $awsKey         = $params[CFG_OPTION_AWS_KEY];
-        $awsSecret      = $params[CFG_OPTION_AWS_SECRET];
-        $apiRegion      = $params[CFG_OPTION_API_REGION];
+        $serviceId = $params['model']['id'];
+        $awsKey    = $params[CFG_OPTION_AWS_KEY];
+        $awsSecret = $params[CFG_OPTION_AWS_SECRET];
+        $apiRegion = $params[CFG_OPTION_API_REGION];
 
-        $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
+        $serviceConfig = getServiceManager($params)->getServiceConfig($serviceId);
 
         if (!empty($serviceConfig)) {
-            $keyId = $serviceConfig->apigw_key_id;
+            $keyId       = $serviceConfig->apigw_key_id;
             $apigwClient = new AwsApiGateway\AwsApiGatewayClient($awsKey, $awsSecret, $apiRegion);
 
             if ($apigwClient->enableKey($keyId)) {
@@ -294,22 +367,22 @@ function awsapigw_UnsuspendAccount(array $params)
  *
  * @return string "success" or an error message
  */
-function awsapigw_TerminateAccount(array $params)
-{
+function awsapigw_TerminateAccount(array $params) {
     try {
-        $serviceId      = $params['model']['id'];
-        $awsKey         = $params[CFG_OPTION_AWS_KEY];
-        $awsSecret      = $params[CFG_OPTION_AWS_SECRET];
-        $apiRegion      = $params[CFG_OPTION_API_REGION];
+        $serviceId = $params['model']['id'];
+        $awsKey    = $params[CFG_OPTION_AWS_KEY];
+        $awsSecret = $params[CFG_OPTION_AWS_SECRET];
+        $apiRegion = $params[CFG_OPTION_API_REGION];
 
-        $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
+        $svcManager = getServiceManager($params);
+        $serviceConfig = $svcManager->getServiceConfig($serviceId);
 
         if (!empty($serviceConfig)) {
-            $keyId = $serviceConfig->apigw_key_id;
+            $keyId       = $serviceConfig->apigw_key_id;
             $apigwClient = new AwsApiGateway\AwsApiGatewayClient($awsKey, $awsSecret, $apiRegion);
 
             if ($apigwClient->deleteKey($keyId)) {
-                if (AwsApiGateway\DatabaseMgr::deleteServiceConfig($serviceId)) {
+                if ($svcManager->deleteServiceConfig($serviceId)) {
                     return 'success';
                 } else {
                     throw new \Exception('The API key is successfully deleted on AWS but not in WHMCS database.');
@@ -339,8 +412,7 @@ function awsapigw_TerminateAccount(array $params)
  *
  * @return array
  */
-function awsapigw_AdminCustomButtonArray()
-{
+function awsapigw_AdminCustomButtonArray() {
     return [
         "Reset API Key" => "ResetApiKey",
     ];
@@ -357,8 +429,7 @@ function awsapigw_AdminCustomButtonArray()
  *
  * @return array
  */
-function awsapigw_ClientAreaAllowedFunctions()
-{
+function awsapigw_ClientAreaAllowedFunctions() {
     return [
         "ResetApiKey" => "ResetApiKey",
     ];
@@ -379,8 +450,7 @@ function awsapigw_ClientAreaAllowedFunctions()
  *
  * @return string "success" or an error message
  */
-function awsapigw_ResetApiKey(array $params)
-{
+function awsapigw_ResetApiKey(array $params) {
     if (isset($params['status']) && $params['status'] == 'Active') {
         awsapigw_TerminateAccount($params);
         awsapigw_CreateAccount($params);
@@ -407,29 +477,28 @@ function awsapigw_ResetApiKey(array $params)
  *
  * @return array
  */
-function awsapigw_AdminServicesTabFields(array $params)
-{
+function awsapigw_AdminServicesTabFields(array $params) {
     try {
-        $serviceId      = $params['model']['id'];
-        $awsKey         = $params[CFG_OPTION_AWS_KEY];
-        $awsSecret      = $params[CFG_OPTION_AWS_SECRET];
-        $apiRegion      = $params[CFG_OPTION_API_REGION];
+        $serviceId = $params['model']['id'];
+        $awsKey    = $params[CFG_OPTION_AWS_KEY];
+        $awsSecret = $params[CFG_OPTION_AWS_SECRET];
+        $apiRegion = $params[CFG_OPTION_API_REGION];
 
-        $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
+        $serviceConfig = getServiceManager($params)->getServiceConfig($serviceId);
 
         if (!empty($serviceConfig)) {
-            $apigwClient = new AwsApiGateway\AwsApiGatewayClient($awsKey, $awsSecret, $apiRegion);
+            $apigwClient          = new AwsApiGateway\AwsApiGatewayClient($awsKey, $awsSecret, $apiRegion);
             $serviceConfigDetails = getServiceConfigDetails($params);
-            $retFields = [
-                'Deployed Region'   => $serviceConfigDetails->deploy_region,
-                'API Key'           => "{$serviceConfigDetails->api_key} (ID: {$serviceConfigDetails->api_key_id})",
-                'API Endpoint'      => $serviceConfigDetails->api_endpoint,
-                'Key Name'          => $serviceConfigDetails->api_key_name,
-                'Key Description'   => $serviceConfigDetails->api_key_desc,
-                'Key Status'        => $serviceConfigDetails->api_key_stat ? 'Active' : 'Inactive',
-                'Usage Plans'       => str_replace(',', ' ,', $serviceConfigDetails->usage_plans),
-                'Creation Date'     => !empty($serviceConfigDetails->created_at) ? fromMySQLDate($serviceConfigDetails->created_at, true) : null,
-                'Updated Date'      => !empty($serviceConfigDetails->updated_at) ? fromMySQLDate($serviceConfigDetails->updated_at, true) : null
+            $retFields            = [
+                'Deployed Region' => $serviceConfigDetails->deploy_region,
+                'API Key'         => "{$serviceConfigDetails->api_key} (ID: {$serviceConfigDetails->api_key_id})",
+                'API Endpoint'    => $serviceConfigDetails->api_endpoint,
+                'Key Name'        => $serviceConfigDetails->api_key_name,
+                'Key Description' => $serviceConfigDetails->api_key_desc,
+                'Key Status'      => $serviceConfigDetails->api_key_stat ? 'Active' : 'Inactive',
+                'Usage Plans'     => str_replace(',', ' ,', $serviceConfigDetails->usage_plans),
+                'Creation Date'   => !empty($serviceConfigDetails->created_at) ? fromMySQLDate($serviceConfigDetails->created_at, true) : null,
+                'Updated Date'    => !empty($serviceConfigDetails->updated_at) ? fromMySQLDate($serviceConfigDetails->updated_at, true) : null,
             ];
 
             return array_filter($retFields, function ($el) {
@@ -477,20 +546,19 @@ function awsapigw_AdminServicesTabFields(array $params)
  *
  * @return array
  */
-function awsapigw_ClientArea(array $params)
-{
-    $serviceId = $params['model']['id'];
-
+function awsapigw_ClientArea(array $params) {
     try {
-        $templateFile  = 'templates/api.tpl';
-        $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
+        $serviceId = $params['model']['id'];
+
+        $templateFile         = 'templates/api.tpl';
+        $serviceConfig        = getServiceManager($params)->getServiceConfig($serviceId);
         $serviceConfigDetails = array_filter((array) getServiceConfigDetails($params, false), function ($el) {
             return isset($el) && $el !== null && trim($el) !== '';
         });
 
         return [
-            'tabOverviewModuleOutputTemplate'   => $templateFile,
-            'templateVariables'                 => $serviceConfigDetails,
+            'tabOverviewModuleOutputTemplate' => $templateFile,
+            'templateVariables'               => $serviceConfigDetails,
         ];
     } catch (\Exception $e) {
         logModuleCall('awsapigw', __FUNCTION__, $params, $e->getMessage(), $e->getTraceAsString());
@@ -499,17 +567,17 @@ function awsapigw_ClientArea(array $params)
     return [];
 }
 
-function getServiceConfigDetails(&$params, $onlineCheck = true)
-{
+function getServiceConfigDetails(&$params, $onlineCheck = true) {
     $data = [];
 
     try {
-        $serviceId      = $params['model']['id'];
-        $awsKey         = $params[CFG_OPTION_AWS_KEY];
-        $awsSecret      = $params[CFG_OPTION_AWS_SECRET];
-        $apiRegion      = $params[CFG_OPTION_API_REGION];
-        $apiEndpoint    = $params[CFG_OPTION_API_ENDPOINT_URL];
-        $serviceConfig = AwsApiGateway\DatabaseMgr::getServiceConfig($serviceId);
+        $serviceId     = $params['model']['id'];
+        $awsKey        = $params[CFG_OPTION_AWS_KEY];
+        $awsSecret     = $params[CFG_OPTION_AWS_SECRET];
+        $apiRegion     = $params[CFG_OPTION_API_REGION];
+        $apiEndpoint   = $params[CFG_OPTION_API_ENDPOINT_URL];
+
+        $serviceConfig = getServiceManager($params)->getServiceConfig($serviceId);
 
         $data = [
             'deploy_region' => $serviceConfig->apigw_region,
@@ -518,17 +586,17 @@ function getServiceConfigDetails(&$params, $onlineCheck = true)
             'api_key_id'    => $serviceConfig->apigw_key_id,
             'api_key_desc'  => null,
             'api_key_stat'  => null,
-            'api_endpoint'  => !empty($apiEndpoint) ? $apiEndpoint : null,
+            'api_endpoint'  => $apiEndpoint ?? null,
             'usage_plans'   => $serviceConfig->usage_plans,
             'created_at'    => null,
-            'updated_at'    => null
+            'updated_at'    => null,
         ];
 
         if (!empty($serviceConfig)) {
             $apigwClient = new AwsApiGateway\AwsApiGatewayClient($awsKey, $awsSecret, $apiRegion);
 
             if ($onlineCheck) { // pass false to disables online check and provides database-cached info
-                $apiKeyStatus   = $apigwClient->getKey($data['api_key_id']);
+                $apiKeyStatus = $apigwClient->getKey($data['api_key_id']);
                 if ($apiKeyStatus instanceof Result) {
                     $data['api_key_name'] = $apiKeyStatus->get('name');
 
@@ -544,11 +612,11 @@ function getServiceConfigDetails(&$params, $onlineCheck = true)
                         $updatedAt->setTimezone(new DateTimeZone($tz));
                     }
 
-                    $data['api_key_stat']   = $apiKeyStatus->get('enabled');
-                    $data['created_at']     = $createdAt;
-                    $data['updated_at']     = $updatedAt;
+                    $data['api_key_stat'] = $apiKeyStatus->get('enabled');
+                    $data['created_at']   = $createdAt;
+                    $data['updated_at']   = $updatedAt;
 
-                    refreshServiceConfig($serviceId, $apiKeyStatus); // sync external config changes for each call
+                    refreshServiceConfig($params, $apiKeyStatus); // sync external config changes for each call
                 }
             }
         }
@@ -559,21 +627,22 @@ function getServiceConfigDetails(&$params, $onlineCheck = true)
     return (object) $data;
 }
 
-function refreshServiceConfig($serviceId, $apiKeyStatus)
-{
+function refreshServiceConfig(&$params, &$apiKeyStatus) {
     try {
-        AwsApiGateway\DatabaseMgr::updateServiceConfig($serviceId, [
-            'created_at'    => $apiKeyStatus->get('createdDate'),
-            'updated_at'    => $apiKeyStatus->get('lastUpdatedDate')
-        ]);
+        $serviceId     = $params['model']['id'];
+
+        getServiceManager($params)
+            ->updateServiceConfig($serviceId, [
+                'created_at' => $apiKeyStatus->get('createdDate'),
+                'updated_at' => $apiKeyStatus->get('lastUpdatedDate'),
+            ]);
     } catch (\Exception $e) {
         logModuleCall('awsapigw', __FUNCTION__, $serviceId, $e->getMessage(), $e->getTraceAsString());
     }
 }
 
-function formatUsagePlan(string $plans)
-{
-    $plans = str_replace(['\r\n', '\r', '\n'], ',', strtolower(trim($plans)));
+function formatUsagePlan(string $plans) {
+    $plans    = str_replace(['\r\n', '\r', '\n'], ',', strtolower(trim($plans)));
     $plansArr = explode(',', $plans);
 
     return array_unique(array_map(function ($plan) {

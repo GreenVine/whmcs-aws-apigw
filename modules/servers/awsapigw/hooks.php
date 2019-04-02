@@ -21,8 +21,12 @@
  * @license https://www.whmcs.com/license/ WHMCS Eula
  */
 
+if (!defined("WHMCS")) {
+    die("This file cannot be accessed directly");
+}
+
 add_hook('EmailPreSend', 10, function (array $vars) {
-    if (!empty($serviceId = $vars['relid'])) { }
+    if (!empty($serviceId = $vars['relid'])) {}
 });
 
 /**
